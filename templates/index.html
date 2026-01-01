@@ -438,7 +438,7 @@
                 formData.append('files', file);
             });
             
-            const response = await fetch('/upload', {
+            const response = await fetch('/photo/upload', {
                 method: 'POST',
                 body: formData
             });
@@ -475,17 +475,17 @@
                 const maxHeight = document.getElementById('maxHeight').value;
                 
                 // 发送压缩请求
-                const response = await fetch('/compress', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        files: uploadedFiles,
-                        max_width: maxWidth,
-                        max_height: maxHeight
-                    })
-                });
+            const response = await fetch('/photo/compress', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    files: uploadedFiles,
+                    max_width: maxWidth,
+                    max_height: maxHeight
+                })
+            });
                 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
@@ -531,7 +531,7 @@
                 
                 compressedItem.innerHTML = `
                     <div class="compressed-header">
-                        <img class="preview" src="/download/${encodeURIComponent(file.compressed_filename)}" alt="Preview">
+                        <img class="preview" src="/photo/download/${encodeURIComponent(file.compressed_filename)}" alt="Preview">
                         <div class="compressed-info">
                             <div class="compressed-name">${file.compressed_filename}</div>
                             <div class="size-info">
@@ -559,7 +559,7 @@
             
             // 创建下载链接
             const a = document.createElement('a');
-            a.href = `/download/${encodeURIComponent(filename)}`;
+            a.href = `/photo/download/${encodeURIComponent(filename)}`;
             a.download = filename;
             document.body.appendChild(a);
             a.click();
@@ -578,7 +578,7 @@
         
         // 清理单个文件
         function cleanupFile(fileData) {
-            fetch('/cleanup', {
+            fetch('/photo/cleanup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -618,5 +618,10 @@
             }, 3000);
         }
     </script>
+    <!-- 页脚 -->
+    <footer style="text-align: center; margin-top: 30px; padding: 20px; color: #666; font-size: 14px;">
+        <p>Author: Timo & TRAE</p>
+        <p><a href="https://github.com/timoseven/photo-convert" target="_blank" style="color: #667eea; text-decoration: none;">GitHub: https://github.com/timoseven/photo-convert</a></p>
+    </footer>
 </body>
 </html>

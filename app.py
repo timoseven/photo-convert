@@ -60,11 +60,12 @@ def cleanup_files(files):
         if os.path.exists(file_path):
             os.remove(file_path)
 
+@app.route('/photo/')
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
+@app.route('/photo/upload', methods=['POST'])
 def upload_files():
     """处理图片上传"""
     if 'files' not in request.files:
@@ -91,7 +92,7 @@ def upload_files():
     
     return jsonify({'files': uploaded_files})
 
-@app.route('/compress', methods=['POST'])
+@app.route('/photo/compress', methods=['POST'])
 def compress_files():
     """处理图片压缩"""
     data = request.get_json()
@@ -143,7 +144,7 @@ def compress_files():
     
     return jsonify({'compressed_files': compressed_files})
 
-@app.route('/download/<filename>')
+@app.route('/photo/download/<filename>')
 def download_file(filename):
     """下载压缩后的图片"""
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -154,7 +155,7 @@ def download_file(filename):
     # 发送文件给用户下载
     return send_file(file_path, as_attachment=True)
 
-@app.route('/cleanup', methods=['POST'])
+@app.route('/photo/cleanup', methods=['POST'])
 def cleanup():
     """清理上传和压缩后的文件"""
     data = request.get_json()
