@@ -305,7 +305,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>图片压缩工具</h1>
+        <h1>Timo的图片压缩工具</h1>
         
         <!-- 上传区域 -->
         <div class="upload-section">
@@ -630,26 +630,64 @@
                 // 计算压缩率
                 const compressionRatio = ((1 - file.compressed_size / file.original_size) * 100).toFixed(1);
                 
+                // 构建完整下载链接
+                const downloadUrl = `${window.location.origin}/photo/download/${encodeURIComponent(file.compressed_filename)}`;
+                
                 compressedItem.innerHTML = `
-                    <div class="compressed-header">
-                        <img class="preview" src="/photo/download/${encodeURIComponent(file.compressed_filename)}" alt="Preview">
-                        <div class="compressed-info">
+                    <div class="compressed-header" style="flex-direction: column; align-items: flex-start;">
+                        <div class="compressed-info" style="width: 100%;">
                             <div class="compressed-name">${file.compressed_filename}</div>
                             <div class="size-info">
                                 <span>原始大小: ${formatFileSize(file.original_size)}</span>
                                 <span>压缩后: ${formatFileSize(file.compressed_size)}</span>
                                 <span>压缩率: ${compressionRatio}%</span>
                             </div>
+                            <div style="margin-top: 15px; display: flex; gap: 10px; width: 100%;">
+                                <input type="text" value="${downloadUrl}" readonly style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                <button class="btn" style="background: #4caf50;" onclick="copyToClipboard('${downloadUrl}')">复制链接</button>
+                                <button class="btn download-btn" onclick="downloadFile('${file.compressed_filename}', this)">下载</button>
+                            </div>
                         </div>
-                        <button class="btn download-btn" onclick="downloadFile('${file.compressed_filename}', this)">下载</button>
                     </div>
                 `;
                 
                 resultSection.appendChild(compressedItem);
             });
             
+            // 添加复制所有链接按钮
+            if (compressedFiles.length > 1) {
+                const copyAllDiv = document.createElement('div');
+                copyAllDiv.style.cssText = 'text-align: center; margin-top: 20px;';
+                copyAllDiv.innerHTML = `
+                    <button class="btn" style="background: #2196f3; padding: 15px 30px; font-size: 16px; font-weight: bold;" onclick="copyAllLinks()">复制所有下载链接</button>
+                `;
+                resultSection.appendChild(copyAllDiv);
+            }
+            
             // 隐藏进度
             document.getElementById('progressSection').style.display = 'none';
+        }
+        
+        // 复制到剪贴板
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showMessage('链接已复制到剪贴板', 'success');
+            }).catch(err => {
+                showMessage('复制失败，请手动复制', 'error');
+            });
+        }
+        
+        // 复制所有链接
+        function copyAllLinks() {
+            const links = compressedFiles.map(file => {
+                return `${window.location.origin}/photo/download/${encodeURIComponent(file.compressed_filename)}`;
+            }).join('\n');
+            
+            navigator.clipboard.writeText(links).then(() => {
+                showMessage(`已复制 ${links.split('\n').length} 个下载链接`, 'success');
+            }).catch(err => {
+                showMessage('复制失败，请手动复制', 'error');
+            });
         }
         
         // 下载文件
