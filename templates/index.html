@@ -356,9 +356,9 @@
             <!-- 手动清理按钮将在这里动态添加 -->
         </div>
         
-        <!-- 手动清理按钮 -->
-        <div style="text-align: center; margin-top: 20px;">
-            <button class="btn" id="cleanupBtn" onclick="manualCleanup()" disabled>清理所有文件</button>
+        <!-- 自动清理提示 -->
+        <div style="text-align: center; margin-top: 20px; color: white; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 15px; border-radius: 8px;">
+            <p style="margin: 0;">提示：文件将在生成后1分钟自动清理</p>
         </div>
     </div>
     
@@ -512,8 +512,6 @@
                 // 显示结果
                 displayResults();
                 showMessage('压缩成功！', 'success');
-                // 启用手动清理按钮
-                document.getElementById('cleanupBtn').disabled = false;
                 
             } catch (error) {
                 showMessage('压缩失败：' + error.message, 'error');
@@ -581,31 +579,7 @@
             }, 1000);
         }
         
-        // 手动清理所有文件
-        function manualCleanup() {
-            if (compressedFiles.length > 0) {
-                fetch('/photo/cleanup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        files: compressedFiles
-                    })
-                }).then(response => response.json())
-                  .then(data => {
-                      if (data.success) {
-                          showMessage('文件已清理', 'success');
-                          compressedFiles = [];
-                          uploadedFiles = [];
-                          // 清空结果区域
-                          document.getElementById('resultSection').innerHTML = '';
-                          // 重置压缩按钮
-                          document.getElementById('compressBtn').disabled = true;
-                      }
-                  });
-            }
-        }
+
         
 
         

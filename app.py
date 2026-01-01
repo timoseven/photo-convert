@@ -1,17 +1,56 @@
-from flask import Flask, request, render_template, send_file, jsonify
+from flask import Flask, request, render_template, send_file, jsonify, abort
 import os
 from PIL import Image
-import pyheif
 import tempfile
 import shutil
-from datetime import datetime
+from datetime import datetime, timedelta
+import threading
+import time
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
 app.config['ALLOWED_EXTENSIONS'] = {'jpg', 'jpeg', 'png', 'heif', 'heic', 'webp'}
+app.config['FILE_EXPIRY_TIME'] = timedelta(minutes=1)  # 文件过期时间为1分钟
 
 # 确保上传文件夹存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# 文件元数据存储：{filename: {'upload_ip': 'xxx.xxx.xxx.xxx', 'created_at': datetime}}
+file_metadata = {}
+
+# 定时清理过期文件的线程
+class FileCleanupThread(threading.Thread):
+    def run(self):
+        while True:
+            # 每30秒检查一次过期文件
+            time.sleep(30)
+            now = datetime.now()
+            expired_files = []
+            
+            # 找出过期文件
+            for filename, metadata in list(file_metadata.items()):
+                if now - metadata['created_at'] > app.config['FILE_EXPIRY_TIME']:
+                    expired_files.append(filename)
+            
+            # 删除过期文件
+            for filename in expired_files:
+                # 删除压缩文件
+                compressed_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                if os.path.exists(compressed_path):
+                    os.remove(compressed_path)
+                
+                # 删除对应的原始文件（如果存在）
+                original_path = file_metadata[filename].get('original_path')
+                if original_path and os.path.exists(original_path):
+                    os.remove(original_path)
+                
+                # 从元数据中移除
+                del file_metadata[filename]
+
+# 启动定时清理线程
+cleanup_thread = FileCleanupThread()
+cleanup_thread.daemon = True
+cleanup_thread.start()
 
 def allowed_file(filename):
     """检查文件扩展名是否允许"""
@@ -133,6 +172,9 @@ def compress_files():
         # 压缩图片
         compress_image(input_path, output_path, max_width, max_height)
         
+        # 获取客户端IP
+        client_ip = request.remote_addr
+        
         compressed_files.append({
             'original_filename': filename,
             'compressed_filename': compressed_filename,
@@ -141,16 +183,32 @@ def compress_files():
             'original_size': file_data['original_size'],
             'compressed_size': os.path.getsize(output_path)
         })
+        
+        # 存储文件元数据
+        file_metadata[compressed_filename] = {
+            'upload_ip': client_ip,
+            'created_at': datetime.now(),
+            'original_path': input_path
+        }
     
     return jsonify({'compressed_files': compressed_files})
 
 @app.route('/photo/download/<filename>')
 def download_file(filename):
-    """下载压缩后的图片"""
+    """下载压缩后的图片，只有上传的IP才能下载"""
+    # 检查文件是否存在
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    
     if not os.path.exists(file_path):
-        return jsonify({'error': 'File not found'}), 404
+        abort(404)  # 直接返回404
+    
+    # 检查文件元数据
+    if filename not in file_metadata:
+        abort(404)  # 直接返回404
+    
+    # 验证IP
+    client_ip = request.remote_addr
+    if client_ip != file_metadata[filename]['upload_ip']:
+        abort(404)  # 直接返回404
     
     # 发送文件给用户下载
     return send_file(file_path, as_attachment=True)
