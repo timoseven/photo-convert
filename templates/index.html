@@ -352,7 +352,14 @@
         </div>
         
         <!-- 结果区域 -->
-        <div class="result-section" id="resultSection"></div>
+        <div class="result-section" id="resultSection">
+            <!-- 手动清理按钮将在这里动态添加 -->
+        </div>
+        
+        <!-- 手动清理按钮 -->
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn" id="cleanupBtn" onclick="manualCleanup()" disabled>清理所有文件</button>
+        </div>
     </div>
     
     <script>
@@ -505,6 +512,8 @@
                 // 显示结果
                 displayResults();
                 showMessage('压缩成功！', 'success');
+                // 启用手动清理按钮
+                document.getElementById('cleanupBtn').disabled = false;
                 
             } catch (error) {
                 showMessage('压缩失败：' + error.message, 'error');
@@ -562,37 +571,43 @@
             a.href = `/photo/download/${encodeURIComponent(filename)}`;
             a.download = filename;
             document.body.appendChild(a);
+            
             a.click();
             document.body.removeChild(a);
             
-            // 下载完成后清理文件
+            // 下载后更新按钮状态
             setTimeout(() => {
-                // 找到当前下载的文件信息
-                const fileToClean = compressedFiles.find(file => file.compressed_filename === filename);
-                if (fileToClean) {
-                    cleanupFile(fileToClean);
-                }
                 btn.innerHTML = '已下载';
             }, 1000);
         }
         
-        // 清理单个文件
-        function cleanupFile(fileData) {
-            fetch('/photo/cleanup', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    files: [fileData]
-                })
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.success) {
-                      console.log('文件已清理');
-                  }
-              });
+        // 手动清理所有文件
+        function manualCleanup() {
+            if (compressedFiles.length > 0) {
+                fetch('/photo/cleanup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: compressedFiles
+                    })
+                }).then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          showMessage('文件已清理', 'success');
+                          compressedFiles = [];
+                          uploadedFiles = [];
+                          // 清空结果区域
+                          document.getElementById('resultSection').innerHTML = '';
+                          // 重置压缩按钮
+                          document.getElementById('compressBtn').disabled = true;
+                      }
+                  });
+            }
         }
+        
+
         
         // 格式化文件大小
         function formatFileSize(bytes) {
