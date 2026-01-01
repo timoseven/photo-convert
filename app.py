@@ -172,8 +172,13 @@ def compress_files():
         # 压缩图片
         compress_image(input_path, output_path, max_width, max_height)
         
-        # 获取客户端IP
+        # 获取客户端IP（支持代理环境）
         client_ip = request.remote_addr
+        # 检查代理头，获取真实IP
+        if 'X-Forwarded-For' in request.headers:
+            client_ip = request.headers['X-Forwarded-For'].split(',')[0].strip()
+        elif 'X-Real-IP' in request.headers:
+            client_ip = request.headers['X-Real-IP'].strip()
         
         compressed_files.append({
             'original_filename': filename,
@@ -190,27 +195,50 @@ def compress_files():
             'created_at': datetime.now(),
             'original_path': input_path
         }
+        
+        # 调试日志
+        print(f"压缩完成: {compressed_filename}, IP: {client_ip}, 路径: {output_path}")
     
     return jsonify({'compressed_files': compressed_files})
 
 @app.route('/photo/download/<filename>')
 def download_file(filename):
     """下载压缩后的图片，只有上传的IP才能下载"""
+    # 调试日志
+    print(f"下载请求: {filename}, 客户端IP: {request.remote_addr}")
+    
     # 检查文件是否存在
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    print(f"文件路径: {file_path}, 存在: {os.path.exists(file_path)}")
+    
     if not os.path.exists(file_path):
+        print(f"文件不存在: {filename}")
         abort(404)  # 直接返回404
     
     # 检查文件元数据
+    print(f"文件元数据中存在: {filename in file_metadata}")
     if filename not in file_metadata:
+        print(f"元数据不存在: {filename}")
         abort(404)  # 直接返回404
     
-    # 验证IP
+    # 验证IP（支持代理环境）
     client_ip = request.remote_addr
-    if client_ip != file_metadata[filename]['upload_ip']:
+    # 检查代理头，获取真实IP
+    if 'X-Forwarded-For' in request.headers:
+        client_ip = request.headers['X-Forwarded-For'].split(',')[0].strip()
+    elif 'X-Real-IP' in request.headers:
+        client_ip = request.headers['X-Real-IP'].strip()
+    
+    stored_ip = file_metadata[filename]['upload_ip']
+    print(f"请求IP: {client_ip}, 存储IP: {stored_ip}")
+    
+    # IP验证（添加容错，允许本地调试）
+    if client_ip != stored_ip and not (client_ip == '127.0.0.1' and stored_ip == '127.0.0.1'):
+        print(f"IP验证失败: 请求IP {client_ip} != 存储IP {stored_ip}")
         abort(404)  # 直接返回404
     
     # 发送文件给用户下载
+    print(f"下载成功: {filename}")
     return send_file(file_path, as_attachment=True)
 
 @app.route('/photo/cleanup', methods=['POST'])
