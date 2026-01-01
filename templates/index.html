@@ -447,17 +447,44 @@
         
         // 获取图片的长宽比
         function getImageAspectRatio(file) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => {
-                    resolve(img.width / img.height);
-                    URL.revokeObjectURL(img.src);
-                };
-                img.onerror = () => {
-                    reject(new Error('无法获取图片尺寸'));
-                    URL.revokeObjectURL(img.src);
-                };
-                img.src = URL.createObjectURL(file);
+            return new Promise((resolve) => {
+                // 设置默认比例（16:9），避免获取失败时影响流程
+                const defaultRatio = 16 / 9;
+                
+                try {
+                    const img = new Image();
+                    
+                    // 设置超时时间为3秒
+                    const timeoutId = setTimeout(() => {
+                        console.warn('获取图片尺寸超时，使用默认比例');
+                        resolve(defaultRatio);
+                        URL.revokeObjectURL(img.src);
+                    }, 3000);
+                    
+                    img.onload = () => {
+                        clearTimeout(timeoutId);
+                        const ratio = img.width / img.height;
+                        // 确保获取到有效的长宽比
+                        if (isNaN(ratio) || ratio <= 0) {
+                            resolve(defaultRatio);
+                        } else {
+                            resolve(ratio);
+                        }
+                        URL.revokeObjectURL(img.src);
+                    };
+                    
+                    img.onerror = () => {
+                        clearTimeout(timeoutId);
+                        console.warn('无法获取图片尺寸，使用默认比例');
+                        resolve(defaultRatio);
+                        URL.revokeObjectURL(img.src);
+                    };
+                    
+                    img.src = URL.createObjectURL(file);
+                } catch (error) {
+                    console.warn('获取图片尺寸出错，使用默认比例:', error.message);
+                    resolve(defaultRatio);
+                }
             });
         }
         
