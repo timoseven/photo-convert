@@ -172,11 +172,18 @@ def compress_files():
         # 压缩图片
         compress_image(input_path, output_path, max_width, max_height)
         
-        # 获取客户端IP（直接使用Nginx传递的真实IP，Nginx已处理IP转发）
+        # 获取客户端IP（支持Cloudflare + Nginx环境）
         client_ip = request.remote_addr
-        # 优先使用X-Real-IP头（Nginx默认使用这个头传递真实IP）
-        if 'X-Real-IP' in request.headers:
+        
+        # 优先使用Cloudflare的真实IP头
+        if 'CF-Connecting-IP' in request.headers:
+            client_ip = request.headers['CF-Connecting-IP'].strip()
+        # 其次使用X-Real-IP头（Nginx默认使用这个头传递真实IP）
+        elif 'X-Real-IP' in request.headers:
             client_ip = request.headers['X-Real-IP'].strip()
+        # 最后使用X-Forwarded-For头
+        elif 'X-Forwarded-For' in request.headers:
+            client_ip = request.headers['X-Forwarded-For'].split(',')[0].strip()
         
         compressed_files.append({
             'original_filename': filename,
@@ -208,11 +215,18 @@ def download_file(filename):
     if filename not in file_metadata:
         abort(404)  # 直接返回404
     
-    # 获取客户端IP（直接使用Nginx传递的真实IP，Nginx已处理IP转发）
+    # 获取客户端IP（支持Cloudflare + Nginx环境）
     client_ip = request.remote_addr
-    # 优先使用X-Real-IP头（Nginx默认使用这个头传递真实IP）
-    if 'X-Real-IP' in request.headers:
+    
+    # 优先使用Cloudflare的真实IP头
+    if 'CF-Connecting-IP' in request.headers:
+        client_ip = request.headers['CF-Connecting-IP'].strip()
+    # 其次使用X-Real-IP头（Nginx默认使用这个头传递真实IP）
+    elif 'X-Real-IP' in request.headers:
         client_ip = request.headers['X-Real-IP'].strip()
+    # 最后使用X-Forwarded-For头
+    elif 'X-Forwarded-For' in request.headers:
+        client_ip = request.headers['X-Forwarded-For'].split(',')[0].strip()
     
     # IP验证
     stored_ip = file_metadata[filename]['upload_ip']
