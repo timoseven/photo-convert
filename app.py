@@ -205,7 +205,7 @@ def compress_files():
 
 @app.route('/photo/download/<filename>')
 def download_file(filename):
-    """下载压缩后的图片，只有上传的IP才能下载"""
+    """下载压缩后的图片，移除IP限制，只保留1分钟自动清理"""
     # 检查文件是否存在
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     if not os.path.exists(file_path):
@@ -215,31 +215,7 @@ def download_file(filename):
     if filename not in file_metadata:
         abort(404)  # 直接返回404
     
-    # 获取客户端IP（支持Cloudflare + Nginx环境）
-    client_ip = request.remote_addr
-    
-    # 优先使用Cloudflare的真实IP头
-    if 'CF-Connecting-IP' in request.headers:
-        client_ip = request.headers['CF-Connecting-IP'].strip()
-    # 其次使用X-Real-IP头（Nginx默认使用这个头传递真实IP）
-    elif 'X-Real-IP' in request.headers:
-        client_ip = request.headers['X-Real-IP'].strip()
-    # 最后使用X-Forwarded-For头
-    elif 'X-Forwarded-For' in request.headers:
-        client_ip = request.headers['X-Forwarded-For'].split(',')[0].strip()
-    
-    # IP验证
-    stored_ip = file_metadata[filename]['upload_ip']
-    
-    # 允许本地调试（127.0.0.1）
-    if client_ip == '127.0.0.1' and stored_ip == '127.0.0.1':
-        return send_file(file_path, as_attachment=True)
-    
-    # 验证真实IP
-    if client_ip != stored_ip:
-        abort(404)  # 直接返回404
-    
-    # 发送文件给用户下载
+    # 发送文件给用户下载（移除IP限制）
     return send_file(file_path, as_attachment=True)
 
 @app.route('/photo/cleanup', methods=['POST'])
