@@ -330,6 +330,10 @@
         <!-- 压缩设置 -->
         <div class="settings-section">
             <h2>压缩设置</h2>
+            <div style="margin-bottom: 15px;">
+                <input type="checkbox" id="keepAspectRatio" checked>
+                <label for="keepAspectRatio" style="margin-left: 8px; color: #666;">保持原始长宽比</label>
+            </div>
             <div class="size-inputs">
                 <div class="input-group">
                     <label for="maxWidth">最大宽度 (像素)</label>
@@ -438,8 +442,37 @@
             }
         }
         
+        // 存储原始图片的长宽比
+        let originalAspectRatio = 16 / 9; // 默认16:9
+        
+        // 获取图片的长宽比
+        function getImageAspectRatio(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    resolve(img.width / img.height);
+                    URL.revokeObjectURL(img.src);
+                };
+                img.onerror = () => {
+                    reject(new Error('无法获取图片尺寸'));
+                    URL.revokeObjectURL(img.src);
+                };
+                img.src = URL.createObjectURL(file);
+            });
+        }
+        
         // 上传文件
         async function uploadFiles() {
+            // 获取第一张图片的长宽比（用于保持比例）
+            if (selectedFiles.length > 0 && document.getElementById('keepAspectRatio').checked) {
+                try {
+                    originalAspectRatio = await getImageAspectRatio(selectedFiles[0]);
+                    console.log('原始长宽比:', originalAspectRatio);
+                } catch (error) {
+                    console.error('获取图片长宽比失败:', error);
+                }
+            }
+            
             const formData = new FormData();
             selectedFiles.forEach(file => {
                 formData.append('files', file);
@@ -458,6 +491,40 @@
             uploadedFiles = data.files;
             return uploadedFiles;
         }
+        
+        // 初始化长宽比保持功能
+        function initAspectRatio() {
+            const maxWidthInput = document.getElementById('maxWidth');
+            const maxHeightInput = document.getElementById('maxHeight');
+            const keepAspectCheckbox = document.getElementById('keepAspectRatio');
+            
+            // 监听宽度变化
+            maxWidthInput.addEventListener('input', function() {
+                if (keepAspectCheckbox.checked) {
+                    const width = parseInt(this.value);
+                    if (!isNaN(width) && width > 0) {
+                        const height = Math.round(width / originalAspectRatio);
+                        maxHeightInput.value = height;
+                    }
+                }
+            });
+            
+            // 监听高度变化
+            maxHeightInput.addEventListener('input', function() {
+                if (keepAspectCheckbox.checked) {
+                    const height = parseInt(this.value);
+                    if (!isNaN(height) && height > 0) {
+                        const width = Math.round(height * originalAspectRatio);
+                        maxWidthInput.value = width;
+                    }
+                }
+            });
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initAspectRatio();
+        });
         
         // 压缩文件
         async function compressFiles() {
