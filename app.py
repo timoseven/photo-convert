@@ -62,27 +62,6 @@ def allowed_file(filename):
     """检查文件扩展名是否允许"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def remove_gps_metadata(img):
-    """移除图片中的GPS地理位置信息"""
-    try:
-        # 检查是否有EXIF数据
-        if hasattr(img, '_getexif') and img._getexif():
-            exif = img._getexif()
-            if exif:
-                # GPS相关的EXIF标签范围是34850-34870
-                # 移除所有GPS相关的EXIF标签
-                gps_tags = list(range(34850, 34871))
-                for tag in gps_tags:
-                    if tag in exif:
-                        del exif[tag]
-                
-                # 返回处理后的EXIF数据
-                return exif
-        return None
-    except Exception:
-        # 如果处理EXIF数据出错，返回None
-        return None
-
 def compress_image(input_path, output_path, max_width, max_height):
     """压缩图片到指定大小，同时移除GPS地理位置信息"""
     import subprocess
@@ -107,14 +86,8 @@ def compress_image(input_path, output_path, max_width, max_height):
             img = Image.open(temp_jpeg)
             img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
             
-            # 移除GPS地理位置信息
-            exif = remove_gps_metadata(img)
-            if exif:
-                # 如果有处理后的EXIF数据，保存时使用
-                img.save(output_path, optimize=True, quality=85, exif=exif)
-            else:
-                # 否则不保存EXIF数据
-                img.save(output_path, optimize=True, quality=85, exif=b'')
+            # 不保存EXIF数据，自动移除所有EXIF信息（包括GPS）
+            img.save(output_path, optimize=True, quality=85)
             
             # 删除临时文件
             os.remove(temp_jpeg)
@@ -123,14 +96,8 @@ def compress_image(input_path, output_path, max_width, max_height):
             img = Image.open(input_path)
             img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
             
-            # 移除GPS地理位置信息
-            exif = remove_gps_metadata(img)
-            if exif:
-                # 如果有处理后的EXIF数据，保存时使用
-                img.save(output_path, optimize=True, quality=85, exif=exif)
-            else:
-                # 否则不保存EXIF数据
-                img.save(output_path, optimize=True, quality=85, exif=b'')
+            # 不保存EXIF数据，自动移除所有EXIF信息（包括GPS）
+            img.save(output_path, optimize=True, quality=85)
     except subprocess.CalledProcessError as e:
         raise Exception(f"图片压缩失败: {e.stderr}")
     except Exception as e:
