@@ -56,8 +56,29 @@ def allowed_file(filename):
     """检查文件扩展名是否允许"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+def remove_gps_metadata(img):
+    """移除图片中的GPS地理位置信息"""
+    try:
+        # 检查是否有EXIF数据
+        if hasattr(img, '_getexif') and img._getexif():
+            exif = img._getexif()
+            if exif:
+                # GPS相关的EXIF标签范围是34850-34870
+                # 移除所有GPS相关的EXIF标签
+                gps_tags = list(range(34850, 34871))
+                for tag in gps_tags:
+                    if tag in exif:
+                        del exif[tag]
+                
+                # 返回处理后的EXIF数据
+                return exif
+        return None
+    except Exception:
+        # 如果处理EXIF数据出错，返回None
+        return None
+
 def compress_image(input_path, output_path, max_width, max_height):
-    """压缩图片到指定大小"""
+    """压缩图片到指定大小，同时移除GPS地理位置信息"""
     import subprocess
     try:
         # 获取原始文件扩展名
@@ -72,14 +93,22 @@ def compress_image(input_path, output_path, max_width, max_height):
             subprocess.run([
                 'heif-convert',
                 '-q', '85',  # 质量设置
-                input_path,  # 输入文件
-                temp_jpeg  # 输出临时JPEG文件
+                input_path,
+                temp_jpeg
             ], check=True, capture_output=True, text=True)
             
             # 使用PIL打开转换后的JPEG文件并压缩
             img = Image.open(temp_jpeg)
             img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
-            img.save(output_path, optimize=True, quality=85)
+            
+            # 移除GPS地理位置信息
+            exif = remove_gps_metadata(img)
+            if exif:
+                # 如果有处理后的EXIF数据，保存时使用
+                img.save(output_path, optimize=True, quality=85, exif=exif)
+            else:
+                # 否则不保存EXIF数据
+                img.save(output_path, optimize=True, quality=85, exif=b'')
             
             # 删除临时文件
             os.remove(temp_jpeg)
@@ -87,7 +116,15 @@ def compress_image(input_path, output_path, max_width, max_height):
             # 对于其他格式，直接使用PIL进行压缩
             img = Image.open(input_path)
             img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
-            img.save(output_path, optimize=True, quality=85)
+            
+            # 移除GPS地理位置信息
+            exif = remove_gps_metadata(img)
+            if exif:
+                # 如果有处理后的EXIF数据，保存时使用
+                img.save(output_path, optimize=True, quality=85, exif=exif)
+            else:
+                # 否则不保存EXIF数据
+                img.save(output_path, optimize=True, quality=85, exif=b'')
     except subprocess.CalledProcessError as e:
         raise Exception(f"图片压缩失败: {e.stderr}")
     except Exception as e:
