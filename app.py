@@ -12,6 +12,12 @@ app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
 app.config['ALLOWED_EXTENSIONS'] = {'jpg', 'jpeg', 'png', 'heif', 'heic', 'webp'}
 app.config['FILE_EXPIRY_TIME'] = timedelta(minutes=1)  # 文件过期时间为1分钟
 
+# 增加文件大小限制到100MB
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
+
+# 增加请求超时时间
+app.config['TIMEOUT'] = 300  # 5分钟
+
 # 确保上传文件夹存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
