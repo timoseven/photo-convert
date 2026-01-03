@@ -10,7 +10,7 @@ import time
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
 app.config['ALLOWED_EXTENSIONS'] = {'jpg', 'jpeg', 'png', 'heif', 'heic', 'webp'}
-app.config['FILE_EXPIRY_TIME'] = timedelta(minutes=1)  # 文件过期时间为1分钟
+app.config['FILE_EXPIRY_TIME'] = timedelta(minutes=5)  # 文件过期时间为5分钟
 
 # 增加文件大小限制到100MB
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
@@ -218,51 +218,17 @@ def compress_files():
 
 @app.route('/photo/download/<filename>')
 def download_file(filename):
-    """下载压缩后的图片，只有上传的IP才能下载"""
-    # 调试日志
-    print(f"\n下载请求 - 文件名: {filename}")
-    
+    """下载压缩后的图片，移除IP限制"""
     # 检查文件是否存在
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    print(f"文件路径: {file_path}, 存在: {os.path.exists(file_path)}")
-    
     if not os.path.exists(file_path):
-        print(f"文件不存在: {filename}")
         abort(404)  # 直接返回404
     
     # 检查文件元数据
-    print(f"文件元数据存在: {filename in file_metadata}")
     if filename not in file_metadata:
-        print(f"元数据不存在: {filename}")
         abort(404)  # 直接返回404
     
-    # 获取客户端IP（Cloudflare → Nginx → Python 架构专用配置）
-    client_ip = request.remote_addr
-    
-    # Cloudflare会将真实IP放在CF-Connecting-IP头中
-    if 'CF-Connecting-IP' in request.headers:
-        client_ip = request.headers['CF-Connecting-IP'].strip()
-    # 如果Nginx配置了传递X-Real-IP头，则使用它
-    elif 'X-Real-IP' in request.headers:
-        client_ip = request.headers['X-Real-IP'].strip()
-    # 如果Nginx配置了X-Forwarded-For头，则使用它
-    elif 'X-Forwarded-For' in request.headers:
-        client_ip = request.headers['X-Forwarded-For'].split(',')[0].strip()
-    
-    # 调试：输出所有IP相关头
-    print(f"IP调试 - 原始IP: {request.remote_addr}, CF-Connecting-IP: {request.headers.get('CF-Connecting-IP', '不存在')}, X-Real-IP: {request.headers.get('X-Real-IP', '不存在')}, X-Forwarded-For: {request.headers.get('X-Forwarded-For', '不存在')}, 最终IP: {client_ip}")
-    
-    # 获取存储的IP
-    stored_ip = file_metadata[filename]['upload_ip']
-    print(f"存储的上传IP: {stored_ip}")
-    
-    # IP验证
-    if client_ip != stored_ip:
-        print(f"IP验证失败 - 请求IP: {client_ip} != 存储IP: {stored_ip}")
-        abort(404)  # 直接返回404
-    
-    # 发送文件给用户下载
-    print(f"IP验证成功，允许下载")
+    # 发送文件给用户下载（移除IP限制）
     return send_file(file_path, as_attachment=True)
 
 @app.route('/photo/cleanup', methods=['POST'])
